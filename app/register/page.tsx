@@ -1,0 +1,61 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+
+export default function RegisterPage() {
+    const router = useRouter();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const res = await fetch("/api/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password }),
+        });
+
+        if (res.ok) {
+            router.push("/login");
+        } else {
+            setError("Failed to create account. Email might already exist.");
+        }
+    };
+
+    return (
+        <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
+            <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-sm">
+                <h1 className="mb-6 text-2xl font-bold text-gray-900 text-center">Create Master Account</h1>
+
+                {error && <p className="mb-4 text-sm font-medium text-red-600 text-center bg-red-50 py-2 rounded-md">{error}</p>}
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input
+                            type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
+                            className="w-full rounded-md border border-gray-300 p-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Secure Password</label>
+                        <input
+                            type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
+                            className="w-full rounded-md border border-gray-300 p-2 text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
+                        />
+                    </div>
+                    <button type="submit" className="w-full rounded-md bg-blue-600 px-4 py-2 text-white font-medium hover:bg-blue-700 transition">
+                        Register Account
+                    </button>
+                </form>
+
+                <p className="mt-6 text-center text-sm text-gray-600">
+                    Already have an account? <Link href="/login" className="text-blue-600 hover:underline font-medium">Sign in</Link>
+                </p>
+            </div>
+        </div>
+    );
+}

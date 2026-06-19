@@ -1,0 +1,65 @@
+import { NextAuthOptions } from "next-auth";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { PrismaAdapter } from "@next-auth/prisma-adapter";
+import { prisma } from "./prisma";
+import bcrypt from "bcryptjs";
+
+// 🔥 THE FIRM WHITELIST
+const AUTHORIZED_TEAM = [
+    "brianquintero13@yahoo.com",
+    "Scott@qcapitalconnections.com", // Replace with your partner's actual email
+    "320.srv@proton.me"  // Replace with your partner's actual email
+];
+
+export const authOptions: NextAuthOptions = {
+    adapter: PrismaAdapter(prisma),
+    session: { strategy: "jwt" },
+    providers: [
+        CredentialsProvider({
+            name: "Credentials",
+            credentials: {
+                email: { label: "Email", type: "text" },
+                password: { label: "Password", type: "password" }
+            },
+            async authorize(credentials) {
+                if (!credentials?.email || !credentials?.password) return null;
+
+                // SECURITY CHECK 1: Are they on the Whitelist?
+                if (!AUTHORIZED_TEAM.includes(credentials.email)) {
+                    console.warn(`Unauthorized login attempt from: ${credentials.email}`);
+                    return null; // Bounced at the door.
+                }
+
+                const user = await prisma.user.findUnique({
+                    where: { email: credentials.email }
+                });
+
+                if (!user) return null;
+
+                const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
+                if (!isValid) return null;
+
+                return { id: user.id, email: user.email, role: user.role };
+            }
+        })
+    ],
+    callbacks: {
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id;
+                token.role = (user as any).role;
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            if (token && session.user) {
+                (session.user as any).id = token.id;
+                (session.user as any).role = token.role;
+            }
+            return session;
+        }
+    },
+    pages: {
+        signIn: "/login",
+    }
+};
