@@ -4,6 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model Account {
@@ -85,7 +86,7 @@ model RecipientShare {
   maxViews         Int             @default(1)
   currentViews     Int             @default(0)
   revoked          Boolean         @default(false)
-  expiresAt        DateTime?       // <-- This is your custom timer engine
+  expiresAt        DateTime?
   destroyAfterOpen Boolean         @default(false)
   otpChallenges    OTPChallenge[]
   sessions         ViewerSession[]

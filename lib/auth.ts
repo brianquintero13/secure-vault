@@ -6,9 +6,10 @@ import bcrypt from "bcryptjs";
 
 // 🔥 THE FIRM WHITELIST
 const AUTHORIZED_TEAM = [
+    "brian@qcapitalconnections.com", // <-- EDIT THIS to your exact work email!
     "brianquintero13@yahoo.com",
-    "Scott@qcapitalconnections.com", // Replace with your partner's actual email
-    "320.srv@proton.me"  // Replace with your partner's actual email
+    "Scott@qcapitalconnections.com",
+    "320.srv@proton.me"
 ];
 
 export const authOptions: NextAuthOptions = {
