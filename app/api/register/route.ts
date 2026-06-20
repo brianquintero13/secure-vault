@@ -4,8 +4,9 @@ import bcrypt from "bcryptjs";
 
 // 🔥 Must match the whitelist in lib/auth.ts
 const AUTHORIZED_TEAM = [
-    "brian@qcapitalconnections.com", // <-- EDIT THIS to match the auth.ts file!
+    "brian@qcapitalconnections.com",
     "brianquintero13@yahoo.com",
+    "brianquintero99@gmail.com", // <-- Your Gmail is now here too!
     "Scott@qcapitalconnections.com",
     "320.srv@proton.me"
 ];

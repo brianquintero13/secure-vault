@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 const AUTHORIZED_TEAM = [
     "brian@qcapitalconnections.com", // <-- EDIT THIS to your exact work email!
     "brianquintero13@yahoo.com",
+    "brianquintero99@gmail.com",
     "Scott@qcapitalconnections.com",
     "320.srv@proton.me"
 ];
