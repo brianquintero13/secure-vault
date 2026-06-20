@@ -19,7 +19,8 @@ model Account {
   scope             String?
   id_token          String? @db.Text
   session_state     String?
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([provider, providerAccountId])
 }
 
@@ -35,6 +36,7 @@ model VerificationToken {
   identifier String
   token      String   @unique
   expires    DateTime
+
   @@unique([identifier, token])
 }
 
@@ -128,4 +130,45 @@ model AuditEvent {
   metadata         Json?
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+}
+
+// 🔥 THE BURNER LINK ENGINE
+model ShareLink {
+  id                      String    @id @default(cuid())
+  documentUrl             String
+  fileName                String
+  creatorEmail            String?
+  isArchived              Boolean   @default(false)
+
+  // Security Rules
+  requirePassword         Boolean   @default(false)
+  passwordHash            String?
+  maxViews                Int?
+  currentViews            Int       @default(0)
+
+  // Time Bombs
+  expiresAt               DateTime?
+  expiresAfterOpenMinutes Int?
+  firstOpenedAt           DateTime?
+
+  // UI Hostility
+  preventDownload         Boolean   @default(true)
+  watermarkText           String?
+
+  // The Security Camera
+  logs                    AccessLog[]
+  createdAt               DateTime  @default(now())
+}
+
+// 🔥 THE TRACKING CAMERA
+model AccessLog {
+  id          String    @id @default(cuid())
+  shareLinkId String
+  link        ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  ipAddress   String
+  city        String?
+  country     String?
+  deviceOS    String?
+  viewedAt    DateTime  @default(now())
 }

@@ -2,12 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
-// 🔥 Must match the whitelist in lib/auth.ts
 const AUTHORIZED_TEAM = [
     "brian@qcapitalconnections.com",
     "brianquintero13@yahoo.com",
-    "brianquintero99@gmail.com", // <-- Your Gmail is now here too!
-    "Scott@qcapitalconnections.com",
+    "brianquintero99@gmail.com",
+    "scott@qcapitalconnections.com",
     "320.srv@proton.me"
 ];
 
@@ -19,26 +18,27 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Whitelist Gate
-        if (!AUTHORIZED_TEAM.includes(email)) {
-            return NextResponse.json({ error: "Email is not authorized on the system whitelist." }, { status: 403 });
+        const cleanEmail = email.trim().toLowerCase();
+
+        // Whitelist Check
+        if (!AUTHORIZED_TEAM.includes(cleanEmail)) {
+            return NextResponse.json({ error: "This email is not authorized on the system whitelist." }, { status: 403 });
         }
 
-        // Check Duplication
+        // Duplicate Check
         const existingUser = await prisma.user.findUnique({
-            where: { email }
+            where: { email: cleanEmail }
         });
 
         if (existingUser) {
             return NextResponse.json({ error: "Account already exists" }, { status: 400 });
         }
 
-        // Securely Hash Password
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const user = await prisma.user.create({
             data: {
-                email,
+                email: cleanEmail,
                 passwordHash: hashedPassword,
                 role: "admin"
             }
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
         return NextResponse.json({ message: "User created successfully", userId: user.id }, { status: 201 });
     } catch (error) {
-        console.error("Registration endpoint failure:", error);
+        console.error("Registration route failure:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

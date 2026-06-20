@@ -1,58 +1,69 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { v4 as uuidv4 } from "uuid";
+import bcrypt from "bcryptjs";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
-export async function POST(req: Request) {
+export async function POST(request: Request) {
     try {
-        // 1. Authenticate user session
         const session = await getServerSession(authOptions);
         if (!session || !session.user) {
-            return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // 2. Extract configuration from frontend payload
-        const { documentId, recipientEmail, expiresInHours, maxViews } = await req.json();
+        const body = await request.json();
+        const {
+            documentUrl,
+            fileName,
+            requirePassword,
+            password,
+            maxViews,
+            expiresInDays,
+            expiresAfterOpenMinutes,
+            watermarkText,
+        } = body;
 
-        if (!documentId || !recipientEmail) {
-            return NextResponse.json({ error: "Missing document or recipient data" }, { status: 400 });
+        if (!documentUrl || !fileName) {
+            return NextResponse.json({ error: "Missing document details" }, { status: 400 });
         }
 
-        // 3. Compute time-based expiration window
-        let expirationDate = null;
-        if (expiresInHours) {
-            expirationDate = new Date();
-            expirationDate.setHours(expirationDate.getHours() + Number(expiresInHours));
+        let expiresAt: Date | null = null;
+        if (expiresInDays) {
+            expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + parseInt(expiresInDays));
         }
 
-        // 4. Generate unique unguessable look-up token hash
-        const uniqueToken = uuidv4();
+        let passwordHash: string | null = null;
+        if (requirePassword && password) {
+            const salt = await bcrypt.genSalt(10);
+            passwordHash = await bcrypt.hash(password, salt);
+        }
 
-        // 5. Write share record into the Neon Database
-        const shareRecord = await prisma.recipientShare.create({
+        const newLink = await prisma.shareLink.create({
             data: {
-                documentId: documentId,
-                recipientEmail: recipientEmail,
-                tokenHash: uniqueToken,
-                maxViews: maxViews || 3, // Fallback limit parameter
-                expiresAt: expirationDate,
+                documentUrl,
+                fileName,
+                creatorEmail: session.user.email,
+                requirePassword: !!requirePassword,
+                passwordHash,
+                maxViews: maxViews ? parseInt(maxViews) : null,
+                expiresAt,
+                expiresAfterOpenMinutes: expiresAfterOpenMinutes ? parseInt(expiresAfterOpenMinutes) : null,
+                watermarkText: watermarkText || "CONFIDENTIAL",
             },
         });
 
-        // 6. Build final public link structure
-        const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-        const publicLink = `${appUrl}/view/${uniqueToken}`;
+        const baseUrl = process.env.NEXTAUTH_URL || "https://secure-vault-coral.vercel.app";
+        const finalShareUrl = `${baseUrl}/view/${newLink.id}`;
 
         return NextResponse.json({
             success: true,
-            shareId: shareRecord.id,
-            publicLink: publicLink,
-            expiresAt: expirationDate
+            shareUrl: finalShareUrl,
+            linkId: newLink.id
         });
 
     } catch (error) {
-        console.error("Link Generation Engine Failure:", error);
-        return NextResponse.json({ error: "Internal compilation error" }, { status: 500 });
+        console.error("LINK_GENERATION_ERROR:", error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
