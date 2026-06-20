@@ -20,12 +20,10 @@ export async function POST(request: Request) {
 
         const cleanEmail = email.trim().toLowerCase();
 
-        // Whitelist Check
         if (!AUTHORIZED_TEAM.includes(cleanEmail)) {
             return NextResponse.json({ error: "This email is not authorized on the system whitelist." }, { status: 403 });
         }
 
-        // Duplicate Check
         const existingUser = await prisma.user.findUnique({
             where: { email: cleanEmail }
         });

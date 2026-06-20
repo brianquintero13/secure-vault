@@ -15,7 +15,6 @@ export default function DashboardPage() {
                     <p className="text-zinc-400">Secure Document Sharing — Generate secure links and track client views.</p>
                 </div>
 
-                {/* Tab Selection */}
                 <div className="flex gap-6 border-b border-zinc-800 pb-2">
                     <button
                         onClick={() => setActiveTab("generator")}

@@ -29,13 +29,11 @@ export const authOptions: NextAuthOptions = {
 
                 const cleanEmail = credentials.email.trim().toLowerCase();
 
-                // Whitelist Verification
                 if (!AUTHORIZED_TEAM.includes(cleanEmail)) {
                     console.warn(`Unauthorized login attempt blocked from: ${cleanEmail}`);
                     return null;
                 }
 
-                // Fetch database record
                 const user = await prisma.user.findUnique({
                     where: { email: cleanEmail }
                 });
@@ -44,7 +42,6 @@ export const authOptions: NextAuthOptions = {
                     return null;
                 }
 
-                // Check hashed password
                 const isValid = await bcrypt.compare(credentials.password, user.passwordHash);
                 if (!isValid) {
                     return null;

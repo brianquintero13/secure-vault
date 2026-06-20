@@ -62,7 +62,6 @@ export default function CreateShareLink() {
             <h2 className="text-xl font-bold mb-4 text-zinc-100 border-b border-zinc-800 pb-2">Generate Secure Share Link</h2>
 
             <form onSubmit={handleGenerate} className="space-y-6">
-                {/* Step 1: Document Details */}
                 <div className="space-y-4">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">1. Document Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -77,7 +76,6 @@ export default function CreateShareLink() {
                     </div>
                 </div>
 
-                {/* Step 2: Security & Access Settings */}
                 <div className="space-y-4 pt-4 border-t border-zinc-900">
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">2. Security & Access Settings</h3>
 

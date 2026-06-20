@@ -14,11 +14,9 @@ interface ViewPageProps {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
-    // Await the route parameter and password search query
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
-    // 1. Fetch the share link from Postgres
     const shareLink = await prisma.shareLink.findUnique({
         where: { id: token },
     });
@@ -27,25 +25,22 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         return notFound();
     }
 
-    // 2. Fetch connection metadata
     const headerList = await headers();
     const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
     const userAgent = headerList.get("user-agent") || "Unknown Device";
     const city = headerList.get("x-vercel-ip-city") || "Unknown City";
 
-    // 3. PASSWORD GATE: Check password if it is required
     if (shareLink.requirePassword && shareLink.passwordHash) {
         let passwordGranted = false;
 
         if (submittedPassword) {
-            // Securely compare the typed password with the stored hash
             passwordGranted = await bcrypt.compare(submittedPassword, shareLink.passwordHash);
         }
 
         if (!passwordGranted) {
             return (
                 <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
-                    <form method="GET" className="text-center max-w-sm w-full border border-zinc-800 p-8 rounded-lg bg-zinc-950 space-y-6">
+                    <form action={`/view/${token}`} method="GET" className="text-center max-w-sm w-full border border-zinc-800 p-8 rounded-lg bg-zinc-950 space-y-6">
                         <h1 className="text-xl font-bold text-zinc-100 font-sans">Password Required</h1>
                         <p className="text-zinc-400 text-sm">This document is password protected. Please enter the password to view it.</p>
 
@@ -70,7 +65,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 4. SECURITY CHECK: Has the hard expiration date passed?
     if (shareLink.expiresAt && new Date() > shareLink.expiresAt) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -82,7 +76,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 5. SECURITY CHECK: Has it exceeded maximum allowed opens?
     if (shareLink.maxViews && shareLink.currentViews >= shareLink.maxViews) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -94,7 +87,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 6. SECURITY CHECK: Is the time-bomb duration active from the first open?
     if (shareLink.firstOpenedAt && shareLink.expiresAfterOpenMinutes) {
         const timeLimit = new Date(shareLink.firstOpenedAt.getTime() + shareLink.expiresAfterOpenMinutes * 60000);
         if (new Date() > timeLimit) {
@@ -109,7 +101,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 7. Log access details & increment views
     const isFirstOpen = !shareLink.firstOpenedAt;
 
     await prisma.shareLink.update({
@@ -130,14 +121,12 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
     return (
         <div className="relative h-screen w-screen bg-zinc-900 text-white select-none overflow-hidden font-sans">
-            {/* CSS print override rule */}
             <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { display: none !important; }
         }
       `}} />
 
-            {/* Diagonal watermark */}
             <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-4 opacity-10 rotate-[-30deg] scale-125 select-none font-mono text-xs text-white">
                 {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="flex items-center justify-center whitespace-nowrap">
@@ -148,7 +137,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
             <div className="flex h-12 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-6 z-10 relative">
                 <span className="text-sm font-medium tracking-wide text-zinc-300">{shareLink.fileName}</span>
-                <div className="flex items-center gap-4 text-xs text-zinc-500">
+                <div className="flex items-center gap-4 text-xs text-zinc-500 font-sans">
                     <span>Views: {shareLink.currentViews + 1} / {shareLink.maxViews || "∞"}</span>
                     <span className="h-3 w-px bg-zinc-800" />
                     <span className="text-emerald-400 font-medium">Secured View Mode</span>

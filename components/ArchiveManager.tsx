@@ -39,7 +39,7 @@ export default function ArchiveManager() {
             setLoading(true);
             const res = await fetch("/api/share/list");
             if (!res.ok) {
-                throw new Error("Could not load link list.");
+                throw new Error("Could not load link lists.");
             }
             const data = await res.json();
             setLinks(data);
@@ -75,7 +75,7 @@ export default function ArchiveManager() {
         alert("Share link copied to clipboard!");
     };
 
-    if (loading) return <div className="text-zinc-500 text-sm">Loading tracking records...</div>;
+    if (loading) return <div className="text-zinc-500 text-sm">Loading shared links...</div>;
     if (error) return <div className="text-red-500 text-sm">Error: {error}</div>;
 
     const activeLinks = links.filter((l) => !l.isArchived);
@@ -83,7 +83,6 @@ export default function ArchiveManager() {
 
     return (
         <div className="space-y-8 font-sans">
-            {/* ACTIVE LINKS */}
             <section>
                 <h2 className="text-lg font-bold mb-4 text-zinc-100">Active Shared Links</h2>
                 <div className="space-y-4">
@@ -97,27 +96,26 @@ export default function ArchiveManager() {
                                 <div className="flex justify-between items-start gap-4">
                                     <div>
                                         <h3 className="font-bold text-zinc-100 text-base">{link.fileName}</h3>
-                                        <p className="text-xs text-zinc-500 mt-0.5">
+                                        <p className="text-xs text-zinc-500 mt-0.5 font-sans">
                                             Shared by: {link.creatorEmail || "System"} • Created: {new Date(link.createdAt).toLocaleDateString()}
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <button
                                             onClick={() => copyLink(link.id)}
-                                            className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded text-zinc-300 transition"
+                                            className="text-xs bg-zinc-800 hover:bg-zinc-700 px-3 py-1.5 rounded text-zinc-300 transition font-sans"
                                         >
                                             Copy Link
                                         </button>
                                         <button
                                             onClick={() => toggleArchive(link.id, false)}
-                                            className="text-xs bg-red-950/40 text-red-400 hover:bg-red-950/80 px-3 py-1.5 rounded border border-red-900/40 transition"
+                                            className="text-xs bg-red-950/40 text-red-400 hover:bg-red-950/80 px-3 py-1.5 rounded border border-red-900/40 transition font-sans"
                                         >
                                             Archive
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* Link Metadata Grid */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-zinc-950/50 p-3 rounded border border-zinc-800/40 text-xs">
                                     <div>
                                         <span className="text-zinc-500 block mb-0.5">Security Status</span>
@@ -132,28 +130,27 @@ export default function ArchiveManager() {
                     </span>
                                     </div>
                                     <div className="col-span-2 sm:col-span-1">
-                                        <span className="text-zinc-500 block mb-0.5">Client View Log</span>
+                                        <span className="text-zinc-500 block mb-0.5 font-sans">Client View Log</span>
                                         <button
                                             onClick={() => toggleExpand(link.id)}
-                                            className="text-emerald-400 hover:underline font-semibold"
+                                            className="text-emerald-400 hover:underline font-semibold font-sans"
                                         >
                                             {link.logs.length} View{link.logs.length !== 1 ? "s" : ""} • {expandedLinkId === link.id ? "Hide History" : "Show History"}
                                         </button>
                                     </div>
                                 </div>
 
-                                {/* Expandable Client Activity Log */}
                                 {expandedLinkId === link.id && (
                                     <div className="border-t border-zinc-800 pt-3 space-y-2">
-                                        <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase">Viewer Activity History</h4>
+                                        <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase font-sans">Viewer Activity History</h4>
                                         {link.logs.length === 0 ? (
-                                            <p className="text-xs text-zinc-600 italic">No views recorded yet.</p>
+                                            <p className="text-xs text-zinc-600 italic font-sans">No views recorded yet.</p>
                                         ) : (
                                             <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
                                                 {link.logs.map((log) => (
                                                     <div key={log.id} className="flex justify-between items-center text-xs bg-zinc-950 p-2.5 rounded border border-zinc-850">
                                                         <div>
-                                                            <p className="text-zinc-300 font-medium">{log.city || "Unknown City"}, {log.country || "Unknown Country"}</p>
+                                                            <p className="text-zinc-300 font-medium font-sans">{log.city || "Unknown City"}, {log.country || "Unknown Country"}</p>
                                                             <p className="text-[10px] text-zinc-500 font-mono mt-0.5">IP: {log.ipAddress} • OS: {log.deviceOS || "Unknown Device"}</p>
                                                         </div>
                                                         <span className="text-zinc-400 font-mono text-[10px]">
@@ -171,12 +168,11 @@ export default function ArchiveManager() {
                 </div>
             </section>
 
-            {/* ARCHIVED LINKS */}
             <section className="opacity-75 pt-4 border-t border-zinc-900">
                 <h2 className="text-lg font-bold mb-4 text-zinc-500">Inactive / Archived Links</h2>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
                     {archivedLinks.length === 0 ? (
-                        <p className="p-4 text-zinc-500 text-sm">No archived links.</p>
+                        <p className="p-4 text-zinc-500 text-sm font-sans">No archived links.</p>
                     ) : (
                         archivedLinks.map((link) => (
                             <div key={link.id} className="flex justify-between items-center p-4 border-b border-zinc-800 last:border-none">
@@ -186,7 +182,7 @@ export default function ArchiveManager() {
                                 </div>
                                 <button
                                     onClick={() => toggleArchive(link.id, true)}
-                                    className="text-xs bg-emerald-950 text-emerald-400 hover:bg-emerald-900 hover:text-white px-3 py-1.5 rounded transition"
+                                    className="text-xs bg-emerald-950 text-emerald-400 hover:bg-emerald-900 hover:text-white px-3 py-1.5 rounded transition font-sans"
                                 >
                                     Restore Link
                                 </button>
