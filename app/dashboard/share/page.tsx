@@ -41,7 +41,7 @@ export default function CreateShareLink() {
             if (data.success) {
                 setGeneratedLink(data.shareUrl);
             } else {
-                alert("Failed: " + data.error);
+                alert("Failed to generate link: " + data.error);
             }
         } catch (error) {
             alert("Something went wrong");
@@ -59,61 +59,75 @@ export default function CreateShareLink() {
 
     return (
         <div className="bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-white">
-            <h2 className="text-xl font-bold mb-4 text-zinc-100 border-b border-zinc-800 pb-2">Outbound Control Generator</h2>
+            <h2 className="text-xl font-bold mb-4 text-zinc-100 border-b border-zinc-800 pb-2">Generate Secure Share Link</h2>
+
             <form onSubmit={handleGenerate} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">File Name</label>
-                        <input required value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="e.g. Q-Capital-Deck.pdf" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
-                    </div>
-                    <div>
-                        <label className="block text-sm text-zinc-400 mb-1">Document URL (AWS S3 Link)</label>
-                        <input required value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} placeholder="https://s3.amazonaws.com/..." className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
+                {/* Step 1: Document Details */}
+                <div className="space-y-4">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">1. Document Details</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Document Display Name</label>
+                            <input required value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="e.g. Project Pitch Deck" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
+                        </div>
+                        <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Document Source URL (AWS S3 Link)</label>
+                            <input required value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} placeholder="Paste the link from S3 here" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded border border-zinc-800">
-                    <input type="checkbox" id="requirePassword" checked={requirePassword} onChange={(e) => setRequirePassword(e.target.checked)} className="h-5 w-5 accent-emerald-500" />
-                    <div className="flex-1">
-                        <label htmlFor="requirePassword" className="font-medium text-zinc-200">Enforce Access Password</label>
-                        <p className="text-xs text-zinc-500">Enforces a password check before showing the document.</p>
-                    </div>
-                    {requirePassword && (
-                        <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Define password" className="bg-black border border-zinc-700 rounded p-2 text-white" />
-                    )}
-                </div>
+                {/* Step 2: Security & Access Settings */}
+                <div className="space-y-4 pt-4 border-t border-zinc-900">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">2. Security & Access Settings</h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
-                        <label className="block font-medium text-zinc-200 mb-1">Maximum Opens</label>
-                        <input type="number" value={maxViews} onChange={(e) => setMaxViews(e.target.value)} placeholder="e.g. 5" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                    <div className="flex items-center gap-4 bg-zinc-900 p-4 rounded border border-zinc-800">
+                        <input type="checkbox" id="requirePassword" checked={requirePassword} onChange={(e) => setRequirePassword(e.target.checked)} className="h-5 w-5 accent-emerald-500" />
+                        <div className="flex-1">
+                            <label htmlFor="requirePassword" className="font-medium text-zinc-200">Require Password to View</label>
+                            <p className="text-xs text-zinc-500">Forces the client to enter a password before they can view the document.</p>
+                        </div>
+                        {requirePassword && (
+                            <input required type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Set Password" className="bg-black border border-zinc-700 rounded p-2 text-white" />
+                        )}
                     </div>
 
-                    <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
-                        <label className="block font-medium text-zinc-200 mb-1">Hard Expiration (Days)</label>
-                        <input type="number" value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value)} placeholder="e.g. 7" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
-                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+                            <label className="block font-medium text-zinc-200 mb-1">Maximum Views Allowed</label>
+                            <p className="text-xs text-zinc-500 mb-2">The link will automatically turn off after being opened this many times.</p>
+                            <input type="number" value={maxViews} onChange={(e) => setMaxViews(e.target.value)} placeholder="Leave blank for unlimited" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                        </div>
 
-                    <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
-                        <label className="block font-medium text-zinc-200 mb-1">Time-Bomb (Minutes)</label>
-                        <input type="number" value={expiresAfterOpenMinutes} onChange={(e) => setExpiresAfterOpenMinutes(e.target.value)} placeholder="e.g. 30" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
-                    </div>
+                        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+                            <label className="block font-medium text-zinc-200 mb-1">Hard Expiration (Days)</label>
+                            <p className="text-xs text-zinc-500 mb-2">The link will expire completely after this many days.</p>
+                            <input type="number" value={expiresInDays} onChange={(e) => setExpiresInDays(e.target.value)} placeholder="e.g. 7 days" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                        </div>
 
-                    <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
-                        <label className="block font-medium text-zinc-200 mb-1">Forensic Watermark Text</label>
-                        <input type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)} placeholder="CONFIDENTIAL" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+                            <label className="block font-medium text-zinc-200 mb-1">Viewing Time Limit (Minutes)</label>
+                            <p className="text-xs text-zinc-500 mb-2">The link expires this many minutes after the client opens it for the first time.</p>
+                            <input type="number" value={expiresAfterOpenMinutes} onChange={(e) => setExpiresAfterOpenMinutes(e.target.value)} placeholder="e.g. 30 minutes" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                        </div>
+
+                        <div className="bg-zinc-900 p-4 rounded border border-zinc-800">
+                            <label className="block font-medium text-zinc-200 mb-1">Security Watermark Text</label>
+                            <p className="text-xs text-zinc-500 mb-2">Adds a background watermark with this text, the viewer's IP, and city.</p>
+                            <input type="text" value={watermarkText} onChange={(e) => setWatermarkText(e.target.value)} placeholder="CONFIDENTIAL" className="w-full bg-black border border-zinc-700 rounded p-2 text-white" />
+                        </div>
                     </div>
                 </div>
 
                 <button type="submit" disabled={loading} className="w-full bg-white hover:bg-zinc-200 text-black font-bold py-3 rounded transition">
-                    {loading ? "Forging Vault Link..." : "Generate Secure Link"}
+                    {loading ? "Generating Secure Link..." : "Create Secure Link"}
                 </button>
             </form>
 
             {generatedLink && (
                 <div className="mt-8 p-6 bg-emerald-950/40 border border-emerald-900 rounded-xl text-center">
-                    <h3 className="text-emerald-500 font-bold text-lg mb-2">Vault Link Forged</h3>
-                    <p className="text-emerald-200/70 text-xs mb-4">This link has been mapped to your security policies and logged in the database.</p>
+                    <h3 className="text-emerald-500 font-bold text-lg mb-2">Secure Link Created</h3>
+                    <p className="text-emerald-200/70 text-xs mb-4">This link is now active and client views will be logged in your dashboard history.</p>
                     <div className="flex items-center gap-2 bg-black p-3 rounded border border-emerald-900/50">
                         <input readOnly value={generatedLink} className="flex-1 bg-transparent text-emerald-400 outline-none select-all text-sm font-mono" />
                         <button onClick={copyToClipboard} className="bg-emerald-800 text-white px-4 py-2 rounded text-sm hover:bg-emerald-700 transition">Copy</button>

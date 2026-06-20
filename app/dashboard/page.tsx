@@ -11,11 +11,11 @@ export default function DashboardPage() {
         <div className="min-h-screen bg-black text-white p-8">
             <div className="max-w-4xl mx-auto space-y-8">
                 <div className="flex flex-col gap-2 border-b border-zinc-800 pb-6">
-                    <h1 className="text-3xl font-extrabold tracking-tight">Q Capital Connections Vault</h1>
-                    <p className="text-zinc-400">Secure enterprise data room dashboard — Management of outbound burner links.</p>
+                    <h1 className="text-3xl font-extrabold tracking-tight">Q Capital Connections</h1>
+                    <p className="text-zinc-400">Secure Document Sharing — Generate secure links and track client views.</p>
                 </div>
 
-                {/* Dynamic Tab Panel */}
+                {/* Tab Selection */}
                 <div className="flex gap-6 border-b border-zinc-800 pb-2">
                     <button
                         onClick={() => setActiveTab("generator")}
@@ -25,7 +25,7 @@ export default function DashboardPage() {
                                 : "border-transparent text-zinc-500 hover:text-zinc-300"
                         }`}
                     >
-                        Forging Console
+                        Create Share Link
                     </button>
                     <button
                         onClick={() => setActiveTab("archive")}
@@ -35,7 +35,7 @@ export default function DashboardPage() {
                                 : "border-transparent text-zinc-500 hover:text-zinc-300"
                         }`}
                     >
-                        Vault Archives & Auditing
+                        Link Manager & History
                     </button>
                 </div>
 
