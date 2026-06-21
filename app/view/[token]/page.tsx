@@ -3,6 +3,9 @@ import { prisma } from "@/lib/prisma";
 import { headers } from "next/headers";
 import bcrypt from "bcryptjs";
 import React from "react";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { s3Client } from "@/lib/s3";
 
 interface ViewPageProps {
     params: Promise<{
@@ -13,10 +16,22 @@ interface ViewPageProps {
     }>;
 }
 
+// Helper function to extract file name from any S3 URL
+function getS3KeyFromUrl(url: string): string {
+    try {
+        const parsedUrl = new URL(url);
+        return decodeURIComponent(parsedUrl.pathname.slice(1));
+    } catch (e) {
+        return url;
+    }
+}
+
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
+    // Await parameters
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
+    // 1. Fetch the share link from Postgres
     const shareLink = await prisma.shareLink.findUnique({
         where: { id: token },
     });
@@ -25,11 +40,13 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         return notFound();
     }
 
+    // 2. Fetch connection metadata
     const headerList = await headers();
     const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
     const userAgent = headerList.get("user-agent") || "Unknown Device";
     const city = headerList.get("x-vercel-ip-city") || "Unknown City";
 
+    // 3. PASSWORD GATE: Check password if it is required
     if (shareLink.requirePassword && shareLink.passwordHash) {
         let passwordGranted = false;
 
@@ -65,6 +82,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
+    // 4. SECURITY CHECK: Has the hard expiration date passed?
     if (shareLink.expiresAt && new Date() > shareLink.expiresAt) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -76,6 +94,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
+    // 5. SECURITY CHECK: Has it exceeded maximum allowed opens?
     if (shareLink.maxViews && shareLink.currentViews >= shareLink.maxViews) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -87,6 +106,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
+    // 6. SECURITY CHECK: Is the time-bomb duration active from the first open?
     if (shareLink.firstOpenedAt && shareLink.expiresAfterOpenMinutes) {
         const timeLimit = new Date(shareLink.firstOpenedAt.getTime() + shareLink.expiresAfterOpenMinutes * 60000);
         if (new Date() > timeLimit) {
@@ -101,6 +121,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
+    // 7. Log access details & increment views
     const isFirstOpen = !shareLink.firstOpenedAt;
 
     await prisma.shareLink.update({
@@ -119,6 +140,20 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     });
 
+    // 8. Generate a secure, temporary S3 view URL on-the-fly
+    let secureViewUrl = shareLink.documentUrl;
+    try {
+        const s3Key = getS3KeyFromUrl(shareLink.documentUrl);
+        const command = new GetObjectCommand({
+            Bucket: process.env.AWS_BUCKET_NAME,
+            Key: s3Key,
+        });
+        // Generate a temporary link that expires in 15 minutes (900 seconds)
+        secureViewUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
+    } catch (err) {
+        console.error("Failed to generate secure S3 link: ", err);
+    }
+
     return (
         <div className="relative h-screen w-screen bg-zinc-900 text-white select-none overflow-hidden font-sans">
             <style dangerouslySetInnerHTML={{__html: `
@@ -127,6 +162,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
       `}} />
 
+            {/* Diagonal watermark */}
             <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-4 opacity-10 rotate-[-30deg] scale-125 select-none font-mono text-xs text-white">
                 {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="flex items-center justify-center whitespace-nowrap">
@@ -146,7 +182,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
             <div className="flex h-[calc(100vh-48px)] w-full items-center justify-center p-4 bg-zinc-900">
                 <iframe
-                    src={`${shareLink.documentUrl}#toolbar=0&navpanes=0&scrollbar=0`}
+                    src={`${secureViewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                     className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
                 />
             </div>
