@@ -16,6 +16,7 @@ interface ViewPageProps {
     }>;
 }
 
+// Helper function to extract file name from any S3 URL
 function getS3KeyFromUrl(url: string): string {
     try {
         const parsedUrl = new URL(url);
@@ -26,6 +27,7 @@ function getS3KeyFromUrl(url: string): string {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
+    // Await parameters
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
@@ -73,7 +75,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 5. PASSWORD GATE: Check password if required
+    // 5. PASSWORD GATE: Check password if it is required
     if (shareLink.requirePassword && shareLink.passwordHash) {
         let passwordGranted = false;
 
@@ -184,7 +186,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
     return (
         <div className="relative h-screen w-screen bg-zinc-900 text-white select-none overflow-hidden font-sans">
-            {/* CSS print and text-select blocking rules */}
             <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { display: none !important; }
