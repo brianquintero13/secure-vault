@@ -4,6 +4,7 @@ import React, { useState } from "react";
 
 export default function CreateShareLink() {
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
     const [documentUrl, setDocumentUrl] = useState("");
@@ -14,6 +15,58 @@ export default function CreateShareLink() {
     const [expiresInDays, setExpiresInDays] = useState("");
     const [expiresAfterOpenMinutes, setExpiresAfterOpenMinutes] = useState("");
     const [watermarkText, setWatermarkText] = useState("");
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploading(true);
+        // Set display name automatically (removes file extension like .pdf)
+        setFileName(file.name.replace(/\.[^/.]+$/, ""));
+
+        try {
+            // 1. Get the secure upload token (presigned URL) from your backend
+            const response = await fetch("/api/upload", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    filename: file.name,
+                    contentType: file.type,
+                    size: file.size,
+                }),
+            });
+
+            if (!response.ok) {
+                const errData = await response.json();
+                throw new Error(errData.error || "Failed to generate upload tokens");
+            }
+
+            const { uploadUrl, fileKey } = await response.json();
+
+            // 2. Upload the file binary directly from your browser to Amazon S3
+            const s3Upload = await fetch(uploadUrl, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": file.type,
+                },
+                body: file,
+            });
+
+            if (!s3Upload.ok) {
+                throw new Error("Failed to transmit file to S3 storage");
+            }
+
+            // 3. Construct the secure private document S3 URL and auto-fill the form
+            const s3Url = `https://secure-dataroom-vault-brian.s3.us-east-2.amazonaws.com/${fileKey}`;
+            setDocumentUrl(s3Url);
+
+        } catch (err: any) {
+            console.error("Direct S3 Upload error:", err);
+            alert(err.message || "File upload failed. Please try again.");
+        } finally {
+            setUploading(false);
+        }
+    };
 
     const handleGenerate = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -58,7 +111,7 @@ export default function CreateShareLink() {
     };
 
     return (
-        <div className="bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-white">
+        <div className="bg-zinc-950 p-6 rounded-xl border border-zinc-800 text-white font-sans">
             <h2 className="text-xl font-bold mb-4 text-zinc-100 border-b border-zinc-800 pb-2">Generate Secure Share Link</h2>
 
             <form onSubmit={handleGenerate} className="space-y-6">
@@ -66,12 +119,22 @@ export default function CreateShareLink() {
                     <h3 className="text-sm font-semibold uppercase tracking-wider text-zinc-500">1. Document Details</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
+                            <label className="block text-sm text-zinc-400 mb-1">Upload PDF / Document</label>
+                            <input
+                                type="file"
+                                accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                                onChange={handleFileUpload}
+                                className="w-full bg-zinc-900 border border-zinc-800 rounded p-1.5 text-white text-sm file:mr-4 file:py-1 file:px-2.5 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-zinc-800 file:text-zinc-200 hover:file:bg-zinc-700 cursor-pointer"
+                            />
+                            {uploading && <p className="text-xs text-emerald-400 mt-1">Uploading directly to S3...</p>}
+                        </div>
+                        <div>
                             <label className="block text-sm text-zinc-400 mb-1">Document Display Name</label>
                             <input required value={fileName} onChange={(e) => setFileName(e.target.value)} placeholder="e.g. Project Pitch Deck" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
                         </div>
-                        <div>
-                            <label className="block text-sm text-zinc-400 mb-1">Document Source URL (AWS S3 Link)</label>
-                            <input required value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} placeholder="Paste the link from S3 here" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-white" />
+                        <div className="md:col-span-2">
+                            <label className="block text-sm text-zinc-400 mb-1">Document Source URL (Auto-filled upon upload)</label>
+                            <input required value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} placeholder="Paste the link manually or let the uploader fill this automatically" className="w-full bg-zinc-900 border border-zinc-800 rounded p-2 text-zinc-400 font-mono text-xs" />
                         </div>
                     </div>
                 </div>

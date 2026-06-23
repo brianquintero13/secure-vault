@@ -39,12 +39,12 @@ export default function ArchiveManager() {
             setLoading(true);
             const res = await fetch("/api/share/list");
             if (!res.ok) {
-                throw new Error("Could not load link lists.");
+                throw new Error("Failed to retrieve share list.");
             }
             const data = await res.json();
             setLinks(data);
         } catch (err: any) {
-            setError(err.message || "An error occurred.");
+            setError(err.message || "An unexpected error occurred.");
         } finally {
             setLoading(false);
         }
@@ -61,7 +61,7 @@ export default function ArchiveManager() {
                 await fetchLinks();
             }
         } catch (err) {
-            alert("Could not update link status.");
+            alert("Failed to modify archive status.");
         }
     };
 
@@ -83,6 +83,7 @@ export default function ArchiveManager() {
 
     return (
         <div className="space-y-8 font-sans">
+            {/* ACTIVE SHARED LINKS */}
             <section>
                 <h2 className="text-lg font-bold mb-4 text-zinc-100">Active Shared Links</h2>
                 <div className="space-y-4">
@@ -96,7 +97,7 @@ export default function ArchiveManager() {
                                 <div className="flex justify-between items-start gap-4">
                                     <div>
                                         <h3 className="font-bold text-zinc-100 text-base">{link.fileName}</h3>
-                                        <p className="text-xs text-zinc-500 mt-0.5 font-sans">
+                                        <p className="text-xs text-zinc-500 font-sans">
                                             Shared by: {link.creatorEmail || "System"} • Created: {new Date(link.createdAt).toLocaleDateString()}
                                         </p>
                                     </div>
@@ -116,6 +117,7 @@ export default function ArchiveManager() {
                                     </div>
                                 </div>
 
+                                {/* Metadata Grid */}
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-zinc-950/50 p-3 rounded border border-zinc-800/40 text-xs">
                                     <div>
                                         <span className="text-zinc-500 block mb-0.5">Security Status</span>
@@ -140,6 +142,7 @@ export default function ArchiveManager() {
                                     </div>
                                 </div>
 
+                                {/* Expandable History Log */}
                                 {expandedLinkId === link.id && (
                                     <div className="border-t border-zinc-800 pt-3 space-y-2">
                                         <h4 className="text-xs font-bold text-zinc-400 tracking-wider uppercase font-sans">Viewer Activity History</h4>
@@ -168,6 +171,7 @@ export default function ArchiveManager() {
                 </div>
             </section>
 
+            {/* ARCHIVED LINKS */}
             <section className="opacity-75 pt-4 border-t border-zinc-900">
                 <h2 className="text-lg font-bold mb-4 text-zinc-500">Inactive / Archived Links</h2>
                 <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">

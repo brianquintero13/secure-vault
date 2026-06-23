@@ -10,6 +10,7 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Fetch all share links along with their tracking logs
         const links = await prisma.shareLink.findMany({
             include: { logs: true },
             orderBy: { createdAt: "desc" }
