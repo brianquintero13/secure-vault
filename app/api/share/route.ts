@@ -57,13 +57,15 @@ export async function POST(request: Request) {
             },
         });
 
-        // 👈 UPDATED FALLBACK URL TO MATCH YOUR NEW CLEAN DOMAIN
+        // 👈 Force the base domain to match your new clean URL
         const baseUrl = process.env.NEXTAUTH_URL || "https://qcapitaldocs.vercel.app";
         const finalShareUrl = `${baseUrl}/view/${newLink.id}`;
 
+        // Return both shareUrl and publicLink so both dashboard tabs compile correctly
         return NextResponse.json({
             success: true,
             shareUrl: finalShareUrl,
+            publicLink: finalShareUrl,
             linkId: newLink.id
         });
 
