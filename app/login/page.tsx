@@ -32,7 +32,7 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-white">
+        <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 text-white font-sans">
             <form onSubmit={handleSubmit} className="w-full max-w-md space-y-6 bg-zinc-900 p-8 rounded-lg border border-zinc-800 shadow-md">
                 <h2 className="text-2xl font-bold text-center text-zinc-100">System Access Gate</h2>
                 {error && <p className="text-red-500 text-sm text-center bg-red-950/40 p-2 rounded border border-red-900">{error}</p>}
@@ -72,7 +72,7 @@ export default function LoginPage() {
                         className="text-sm text-zinc-400 hover:text-white transition"
                     >
                         Authorized partner? <span className="text-emerald-400 font-semibold hover:underline">Register here</span>
-                    </p>
+                    </button>
                 </div>
             </form>
         </div>
