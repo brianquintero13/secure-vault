@@ -18,7 +18,6 @@ export async function GET(req: NextRequest) {
             return NextResponse.json({ active: false });
         }
 
-        // Check manual deactivation, views used, and expiration date
         const isExpired = link.expiresAt && new Date() > link.expiresAt;
         const isLimitExceeded = link.maxViews && link.currentViews >= link.maxViews;
         const isActive = !link.isArchived && !isExpired && !isLimitExceeded;

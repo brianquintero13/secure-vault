@@ -26,7 +26,6 @@ function getS3KeyFromUrl(url: string): string {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
-    // Await parameters (Next.js 15/16 compliant)
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
@@ -184,14 +183,14 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     });
 
-    // 11. Generate a secure, temporary S3 view URL on-the-fly
+    // 11. Generate secure S3 viewing URL
     let secureViewUrl = shareLink.documentUrl;
     try {
         const s3Key = getS3KeyFromUrl(shareLink.documentUrl);
         const command = new GetObjectCommand({
             Bucket: process.env.AWS_BUCKET_NAME,
             Key: s3Key,
-            ResponseContentDisposition: "inline", // 👈 FORCE INLINE RENDERING (BLOCKS AUTO-DOWNLOADS)
+            ResponseContentDisposition: "inline",
         });
         secureViewUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
     } catch (err) {
@@ -253,17 +252,57 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
             console.error('Status check failed');
           }
         }, 3000);
+
+        // Load PDF.js and render document as flat canvas images (blocks copying & saving completely)
+        if (!${isImage}) {
+          const script = document.createElement('script');
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+          script.onload = () => {
+            const pdfjsLib = window['pdfjs-dist/build/pdf'];
+            pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+            pdfjsLib.getDocument("${secureViewUrl}").promise.then(pdf => {
+              const container = document.getElementById('pdf-viewer');
+              if (container) {
+                container.innerHTML = ''; // Clear loader
+                
+                // Render all pages as flat HTML5 Canvas elements
+                for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                  pdf.getPage(pageNum).then(page => {
+                    const viewport = page.getViewport({ scale: 1.5 });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    canvas.className = "mb-6 border border-zinc-800 shadow-2xl max-w-full rounded bg-white select-none pointer-events-none";
+                    canvas.addEventListener('contextmenu', e => e.preventDefault());
+                    
+                    container.appendChild(canvas);
+
+                    const renderContext = {
+                      canvasContext: context,
+                      viewport: viewport
+                    };
+                    page.render(renderContext);
+                  });
+                }
+              }
+            }).catch(err => {
+              console.error("PDF rendering crash: ", err);
+              const container = document.getElementById('pdf-viewer');
+              if (container) container.innerHTML = '<p class="text-red-500 text-sm">Failed to render secure view. Please reload.</p>';
+            });
+          };
+          document.head.appendChild(script);
+        }
       `}} />
 
-            {/* ELASTIC FLEX WATERMARK (Auto-adjusts and will never overlap itself) */}
-            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden flex flex-col justify-around opacity-20 rotate-[-25deg] scale-105 select-none font-mono text-sm text-zinc-950 font-bold whitespace-nowrap">
-                {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="flex justify-around gap-x-16">
-                        {Array.from({ length: 3 }).map((_, j) => (
-                            <span key={j}>
-                {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
-              </span>
-                        ))}
+            {/* ELEGANT DISTRIBUTED WATERMARK (Dark, transparent text positioned strictly above the canvases) */}
+            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-y-16 gap-x-12 opacity-20 rotate-[-25deg] scale-105 select-none font-mono text-sm text-zinc-950 font-extrabold">
+                {Array.from({ length: 9 }).map((_, i) => (
+                    <div key={i} className="flex items-center justify-center whitespace-nowrap">
+                        {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
                     </div>
                 ))}
             </div>
@@ -289,11 +328,17 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
                         />
                     </div>
                 ) : (
-                    /* Secure native S3 iframe viewer with forced inline rendering (blocks download bars and browser saving prompts) */
-                    <iframe
-                        src={`${secureViewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                        className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
-                    />
+                    /* HTML5 Secure PDF.js Canvas Container - completely overrides browser PDF plugins */
+                    <div
+                        id="pdf-viewer"
+                        className="h-full w-full max-w-4xl overflow-y-auto p-6 flex flex-col items-center bg-zinc-950 rounded border border-zinc-800 shadow-2xl select-none scrollbar-thin scrollbar-thumb-zinc-800"
+                        onContextMenu={(e) => e.preventDefault()}
+                    >
+                        <div className="flex flex-col items-center justify-center h-full space-y-4">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
+                            <p className="text-zinc-500 text-sm font-medium tracking-wide">Initializing secure document workspace...</p>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
