@@ -108,11 +108,12 @@ export default function ArchiveManager() {
                                         >
                                             Copy Link
                                         </button>
+                                        {/* BUTTON Wording Updated to "Deactivate & Archive" */}
                                         <button
                                             onClick={() => toggleArchive(link.id, false)}
                                             className="text-xs bg-red-950/40 text-red-400 hover:bg-red-950/80 px-3 py-1.5 rounded border border-red-900/40 transition font-sans"
                                         >
-                                            Archive
+                                            Deactivate & Archive
                                         </button>
                                     </div>
                                 </div>
