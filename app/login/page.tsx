@@ -63,6 +63,17 @@ export default function LoginPage() {
                 >
                     {loading ? "Authenticating..." : "Authenticate"}
                 </button>
+
+                {/* Direct Link to Register */}
+                <div className="text-center pt-2">
+                    <button
+                        type="button"
+                        onClick={() => router.push("/register")}
+                        className="text-sm text-zinc-400 hover:text-white transition"
+                    >
+                        Authorized partner? <span className="text-emerald-400 font-semibold hover:underline">Register here</span>
+                    </p>
+                </div>
             </form>
         </div>
     );
