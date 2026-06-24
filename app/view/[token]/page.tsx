@@ -26,6 +26,7 @@ function getS3KeyFromUrl(url: string): string {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
+    // Await parameters (Next.js 15/16 compliant)
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
@@ -198,6 +199,10 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
     const currentDate = new Date().toLocaleDateString();
 
+    // Smart check: Is the file an image?
+    const fileExtension = shareLink.fileName.split('.').pop()?.toLowerCase() || "";
+    const isImage = ["png", "jpg", "jpeg", "gif", "webp"].includes(fileExtension);
+
     return (
         <div className="relative h-screen w-screen bg-zinc-900 text-white select-none overflow-hidden font-sans">
             {/* CSS print, selection, and mobile long-press blocking rules */}
@@ -215,7 +220,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
       `}} />
 
-            {/* Block Mobile Selection, Right-Click, and Copy/Print Shortcuts using Backticks */}
+            {/* Block Mobile Selection, Right-Click, and Copy/Print Shortcuts */}
             <script dangerouslySetInnerHTML={{__html: `
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('keydown', event => {
@@ -249,9 +254,9 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }, 3000);
       `}} />
 
-            {/* DENSE DARK GREY WATERMARK (Shows clearly on white PDFs) */}
-            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-4 grid-rows-4 gap-2 opacity-20 rotate-[-25deg] scale-110 select-none font-mono text-xs text-zinc-950 font-bold">
-                {Array.from({ length: 16 }).map((_, i) => (
+            {/* DENSE DARK GREY WATERMARK (Highly legible & spaced out to prevent overlapping itself) */}
+            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-y-16 gap-x-12 opacity-20 rotate-[-25deg] scale-105 select-none font-mono text-sm text-zinc-950 font-bold">
+                {Array.from({ length: 9 }).map((_, i) => (
                     <div key={i} className="flex items-center justify-center whitespace-nowrap">
                         {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
                     </div>
@@ -267,12 +272,24 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
                 </div>
             </div>
 
-            {/* Google Docs Protected Viewer - flattens document into uncopyable image layers */}
             <div className="flex h-[calc(100vh-48px)] w-full items-center justify-center p-4 bg-zinc-900">
-                <iframe
-                    src={"https://docs.google.com/gview?url=" + encodeURIComponent(secureViewUrl) + "&embedded=true"}
-                    className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
-                />
+                {isImage ? (
+                    /* Natively Render Private Images Securley */
+                    <div className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white overflow-auto flex items-center justify-center p-4">
+                        <img
+                            src={secureViewUrl}
+                            alt={shareLink.fileName}
+                            className="max-h-full max-w-full object-contain pointer-events-none select-none"
+                            onContextMenu={(e) => e.preventDefault()}
+                        />
+                    </div>
+                ) : (
+                    /* Google Docs Protected Viewer - flattens documents into uncopyable HTML image layers */
+                    <iframe
+                        src={"https://docs.google.com/gview?url=" + encodeURIComponent(secureViewUrl) + "&embedded=true"}
+                        className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
+                    />
+                )}
             </div>
         </div>
     );
