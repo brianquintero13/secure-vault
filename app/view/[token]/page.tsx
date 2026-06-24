@@ -29,7 +29,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
-    // 1. Fetch the share link from Postgres along with previous view history
     const shareLink = await prisma.shareLink.findUnique({
         where: { id: token },
         include: { logs: { orderBy: { viewedAt: "asc" } } }
@@ -39,13 +38,11 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         return notFound();
     }
 
-    // 2. Fetch connection metadata
     const headerList = await headers();
     const ip = headerList.get("x-forwarded-for")?.split(",")[0] || "127.0.0.1";
     const userAgent = headerList.get("user-agent") || "Unknown Device";
     const city = headerList.get("x-vercel-ip-city") || "Unknown City";
 
-    // 3. INSTANT KILL SWITCH: Check if the link has been archived/deactivated
     if (shareLink.isArchived) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -57,10 +54,8 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 4. OPTIONAL IP / DEVICE LOCKING: Only runs if 'lockToFirstDevice' was checked on the form
     if (shareLink.lockToFirstDevice && shareLink.logs.length > 0) {
         const firstOpenerIp = shareLink.logs[0].ipAddress;
-        // Allow local host testing, but block different external IPs
         if (firstOpenerIp !== "127.0.0.1" && firstOpenerIp !== "::1" && firstOpenerIp !== ip) {
             return (
                 <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -73,7 +68,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 5. UNIQUE RECIPIENTS LIMIT: Count unique IPs in history log to limit different devices
     const uniqueIps = Array.from(new Set(shareLink.logs.map(log => log.ipAddress).filter(loggedIp => loggedIp !== "127.0.0.1" && loggedIp !== "::1")));
     if (shareLink.maxUniqueDevices) {
         const isNewVisitor = !uniqueIps.includes(ip);
@@ -89,7 +83,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 6. PASSWORD GATE: Check password if it is required
     if (shareLink.requirePassword && shareLink.passwordHash) {
         let passwordGranted = false;
 
@@ -125,7 +118,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 7. SECURITY CHECK: Has the hard expiration date passed?
     if (shareLink.expiresAt && new Date() > shareLink.expiresAt) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -137,7 +129,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 8. SECURITY CHECK: Has it exceeded maximum allowed opens?
     if (shareLink.maxViews && shareLink.currentViews >= shareLink.maxViews) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -149,7 +140,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 9. SECURITY CHECK: Is the time-bomb duration active from the first open?
     if (shareLink.firstOpenedAt && shareLink.expiresAfterOpenMinutes) {
         const timeLimit = new Date(shareLink.firstOpenedAt.getTime() + shareLink.expiresAfterOpenMinutes * 60000);
         if (new Date() > timeLimit) {
@@ -164,7 +154,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 10. Log access details & increment views
     const isFirstOpen = !shareLink.firstOpenedAt;
 
     await prisma.shareLink.update({
@@ -183,7 +172,6 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     });
 
-    // 11. Generate a secure, temporary S3 view URL on-the-fly
     let secureViewUrl = shareLink.documentUrl;
     try {
         const s3Key = getS3KeyFromUrl(shareLink.documentUrl);
@@ -216,63 +204,64 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
       `}} />
 
             {/* Block Mobile Selection, Right-Click, and Copy/Print Shortcuts */}
-            <script dangerouslySetInnerHTML={{__html: `
-        document.addEventListener('contextmenu', event => event.preventDefault());
-        document.addEventListener('keydown', event => {
-          if (event.ctrlKey || event.metaKey) {
-            if (event.key === 'c' || event.key === 'p' || event.key === 's') {
-              event.preventDefault();
-              alert("Security Notice: Copying, printing, and saving are disabled on this protected document.");
-            }
-          }
-          if (event.key === 'F12') {
-            event.preventDefault();
-          }
-        });
+            <script dangerouslySetInnerHTML={{__html: "
+                document.addEventListener('contextmenu', event => event.preventDefault());
+                document.addEventListener('keydown', event => {
+                    if (event.ctrlKey || event.metaKey) {
+                        if (event.key === 'c' || event.key === 'p' || event.key === 's') {
+                            event.preventDefault();
+                            alert('Security Notice: Copying, printing, and saving are disabled on this protected document.');
+                        }
+                    }
+                    if (event.key === 'F12') {
+                        event.preventDefault();
+                    }
+                });
 
-        // Actively clear mobile highlight selection triggers
-        document.addEventListener('selectionchange', () => {
-          window.getSelection()?.removeAllRanges();
-        });
+                // Actively clear mobile highlight selection triggers
+                document.addEventListener('selectionchange', () => {
+                    window.getSelection()?.removeAllRanges();
+                });
 
-        // 5-Second Deactivation Check
-        setInterval(async () => {
-          try {
-            const res = await fetch('/api/share/status/${token}');
-            const data = await res.json();
-            if (data && data.active === false) {
-              window.location.reload();
+                // Flat Status Polling Check (Checks every 3 seconds for fast deactivation)
+                setInterval(async () => {
+                try {
+                const res = await fetch('/api/share/status?token=" + token + "');
+                const data = await res.json();
+                if (data && data.active === false) {
+                window.location.reload();
             }
-          } catch (err) {
-            console.error("Connection check failed");
-          }
-        }, 5000);
-      `}} />
+            } catch (err) {
+                console.error('Status check failed');
+            }
+            }, 3000);
+                "}} />
 
             {/* DENSE DARK GREY WATERMARK (Shows clearly on white PDFs) */}
-            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-4 grid-rows-4 gap-2 opacity-20 rotate-[-25deg] scale-110 select-none font-mono text-xs text-zinc-950 font-bold">
-                {Array.from({ length: 16 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-center whitespace-nowrap">
-                        {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
-                    </div>
-                ))}
-            </div>
-
-            <div className="flex h-12 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-6 z-10 relative">
-                <span className="text-sm font-medium tracking-wide text-zinc-300">{shareLink.fileName}</span>
-                <div className="flex items-center gap-4 text-xs text-zinc-500 font-sans">
-                    <span>Views: {shareLink.currentViews + 1} / {shareLink.maxViews || "∞"}</span>
-                    <span className="h-3 w-px bg-zinc-800" />
-                    <span className="text-emerald-400 font-medium">Secured View Mode</span>
-                </div>
-            </div>
-
-            <div className="flex h-[calc(100vh-48px)] w-full items-center justify-center p-4 bg-zinc-900">
-                <iframe
-                    src={`${secureViewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
-                    className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
-                />
-            </div>
+                <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-4 grid-rows-4 gap-2 opacity-20 rotate-[-25deg] scale-110 select-none font-mono text-xs text-zinc-950 font-bold">
+            {Array.from({ length: 16 }).map((_, i) => (
+                <div key={i} className="flex items-center justify-center whitespace-nowrap">
+                {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
         </div>
-    );
+    ))}
+</div>
+
+    <div className="flex h-12 w-full items-center justify-between border-b border-zinc-800 bg-zinc-950 px-6 z-10 relative">
+        <span className="text-sm font-medium tracking-wide text-zinc-300">{shareLink.fileName}</span>
+        <div className="flex items-center gap-4 text-xs text-zinc-500 font-sans">
+            <span>Views: {shareLink.currentViews + 1} / {shareLink.maxViews || "∞"}</span>
+            <span className="h-3 w-px bg-zinc-800" />
+            <span className="text-emerald-400 font-medium">Secured View Mode</span>
+        </div>
+    </div>
+
+    {/* Google Docs Protected Viewer - flattens document into uncopyable image layers */}
+    <div className="flex h-[calc(100vh-48px)] w-full items-center justify-center p-4 bg-zinc-900">
+        <iframe
+            src={"https://docs.google.com/gview?url=" + encodeURIComponent(secureViewUrl) + "&embedded=true"}
+            className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
+        />
+    </div>
+</div>
+);
 }
