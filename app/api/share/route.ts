@@ -57,7 +57,8 @@ export async function POST(request: Request) {
             },
         });
 
-        const baseUrl = process.env.NEXTAUTH_URL || "https://secure-vault-coral.vercel.app";
+        // 👈 UPDATED FALLBACK URL TO MATCH YOUR NEW CLEAN DOMAIN
+        const baseUrl = process.env.NEXTAUTH_URL || "https://qcapitaldocs.vercel.app";
         const finalShareUrl = `${baseUrl}/view/${newLink.id}`;
 
         return NextResponse.json({
