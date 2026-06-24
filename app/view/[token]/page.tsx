@@ -27,7 +27,7 @@ function getS3KeyFromUrl(url: string): string {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
-    // Await parameters
+    // Await parameters (Next.js 15/16 compliant)
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
