@@ -191,6 +191,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         const command = new GetObjectCommand({
             Bucket: process.env.AWS_BUCKET_NAME,
             Key: s3Key,
+            ResponseContentDisposition: "inline", // 👈 FORCE INLINE RENDERING (BLOCKS AUTO-DOWNLOADS)
         });
         secureViewUrl = await getSignedUrl(s3Client, command, { expiresIn: 900 });
     } catch (err) {
@@ -254,11 +255,15 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }, 3000);
       `}} />
 
-            {/* DENSE DARK GREY WATERMARK (Highly legible & spaced out to prevent overlapping itself) */}
-            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-y-16 gap-x-12 opacity-20 rotate-[-25deg] scale-105 select-none font-mono text-sm text-zinc-950 font-bold">
-                {Array.from({ length: 9 }).map((_, i) => (
-                    <div key={i} className="flex items-center justify-center whitespace-nowrap">
-                        {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
+            {/* ELASTIC FLEX WATERMARK (Auto-adjusts and will never overlap itself) */}
+            <div className="pointer-events-none absolute inset-0 z-50 overflow-hidden flex flex-col justify-around opacity-20 rotate-[-25deg] scale-105 select-none font-mono text-sm text-zinc-950 font-bold whitespace-nowrap">
+                {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} className="flex justify-around gap-x-16">
+                        {Array.from({ length: 3 }).map((_, j) => (
+                            <span key={j}>
+                {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
+              </span>
+                        ))}
                     </div>
                 ))}
             </div>
@@ -274,7 +279,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
             <div className="flex h-[calc(100vh-48px)] w-full items-center justify-center p-4 bg-zinc-900">
                 {isImage ? (
-                    /* Natively Render Private Images Securley */
+                    /* Natively Render Private Images Securely */
                     <div className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white overflow-auto flex items-center justify-center p-4">
                         <img
                             src={secureViewUrl}
@@ -284,9 +289,9 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
                         />
                     </div>
                 ) : (
-                    /* Google Docs Protected Viewer - flattens documents into uncopyable HTML image layers */
+                    /* Secure native S3 iframe viewer with forced inline rendering (blocks download bars and browser saving prompts) */
                     <iframe
-                        src={"https://docs.google.com/gview?url=" + encodeURIComponent(secureViewUrl) + "&embedded=true"}
+                        src={`${secureViewUrl}#toolbar=0&navpanes=0&scrollbar=0`}
                         className="h-full w-full max-w-4xl rounded border border-zinc-800 shadow-2xl bg-white"
                     />
                 )}
