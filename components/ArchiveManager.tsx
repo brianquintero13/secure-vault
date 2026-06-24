@@ -20,6 +20,8 @@ interface ShareLinkItem {
     maxViews: number | null;
     currentViews: number;
     isArchived: boolean;
+    lockToFirstDevice: boolean;
+    maxUniqueDevices: number | null;
     createdAt: string;
     logs: AccessLog[];
 }
@@ -75,8 +77,8 @@ export default function ArchiveManager() {
         alert("Share link copied to clipboard!");
     };
 
-    if (loading) return <div className="text-zinc-500 text-sm">Loading shared links...</div>;
-    if (error) return <div className="text-red-500 text-sm">Error: {error}</div>;
+    if (loading) return <div className="text-zinc-500 text-sm font-sans">Loading shared links...</div>;
+    if (error) return <div className="text-red-500 text-sm font-sans">Error: {error}</div>;
 
     const activeLinks = links.filter((l) => !l.isArchived);
     const archivedLinks = links.filter((l) => l.isArchived);
@@ -108,7 +110,6 @@ export default function ArchiveManager() {
                                         >
                                             Copy Link
                                         </button>
-                                        {/* BUTTON Wording Updated to "Deactivate & Archive" */}
                                         <button
                                             onClick={() => toggleArchive(link.id, false)}
                                             className="text-xs bg-red-950/40 text-red-400 hover:bg-red-950/80 px-3 py-1.5 rounded border border-red-900/40 transition font-sans"
@@ -119,21 +120,27 @@ export default function ArchiveManager() {
                                 </div>
 
                                 {/* Metadata Grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 bg-zinc-950/50 p-3 rounded border border-zinc-800/40 text-xs">
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-zinc-950/50 p-3 rounded border border-zinc-800/40 text-xs">
                                     <div>
-                                        <span className="text-zinc-500 block mb-0.5">Security Status</span>
+                                        <span className="text-zinc-500 block mb-0.5">Password Status</span>
                                         <span className={link.requirePassword ? "text-emerald-400 font-medium" : "text-zinc-400"}>
-                      {link.requirePassword ? "Password Protected" : "No Password"}
+                      {link.requirePassword ? "Enabled" : "Disabled"}
                     </span>
                                     </div>
                                     <div>
-                                        <span className="text-zinc-500 block mb-0.5">Views Used</span>
-                                        <span className="text-zinc-300 font-mono font-medium">
-                      {link.currentViews} / {link.maxViews || "Unlimited"}
+                                        <span className="text-zinc-500 block mb-0.5 font-sans">Device Locking</span>
+                                        <span className={link.lockToFirstDevice ? "text-amber-400 font-medium font-sans" : "text-zinc-400"}>
+                      {link.lockToFirstDevice ? "Locked to First IP" : "No Lock"}
                     </span>
                                     </div>
-                                    <div className="col-span-2 sm:col-span-1">
-                                        <span className="text-zinc-500 block mb-0.5 font-sans">Client View Log</span>
+                                    <div>
+                                        <span className="text-zinc-500 block mb-0.5 font-sans">Views / Unique Devices</span>
+                                        <span className="text-zinc-300 font-mono font-medium">
+                      Views: {link.currentViews} / {link.maxViews || "∞"} • Devices: {new Set(link.logs.map(log => log.ipAddress)).size} / {link.maxUniqueDevices || "∞"}
+                    </span>
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1 font-sans">
+                                        <span className="text-zinc-500 block mb-0.5">Client View Log</span>
                                         <button
                                             onClick={() => toggleExpand(link.id)}
                                             className="text-emerald-400 hover:underline font-semibold font-sans"

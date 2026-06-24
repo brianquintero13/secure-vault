@@ -21,6 +21,8 @@ export async function POST(request: Request) {
             expiresInDays,
             expiresAfterOpenMinutes,
             watermarkText,
+            lockToFirstDevice,
+            maxUniqueDevices,
         } = body;
 
         if (!documentUrl || !fileName) {
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
                 expiresAt,
                 expiresAfterOpenMinutes: expiresAfterOpenMinutes ? parseInt(expiresAfterOpenMinutes) : null,
                 watermarkText: watermarkText || "CONFIDENTIAL",
+                lockToFirstDevice: !!lockToFirstDevice,
+                maxUniqueDevices: maxUniqueDevices ? parseInt(maxUniqueDevices) : null,
             },
         });
 

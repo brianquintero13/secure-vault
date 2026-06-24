@@ -16,7 +16,6 @@ interface ViewPageProps {
     }>;
 }
 
-// Helper function to extract file name from any S3 URL
 function getS3KeyFromUrl(url: string): string {
     try {
         const parsedUrl = new URL(url);
@@ -27,7 +26,6 @@ function getS3KeyFromUrl(url: string): string {
 }
 
 export default async function ViewDocumentPage({ params, searchParams }: ViewPageProps) {
-    // Await parameters (Next.js 15/16 compliant)
     const { token } = await params;
     const { password: submittedPassword } = await searchParams;
 
@@ -59,8 +57,8 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 4. IP / DEVICE LOCKING: Lock the link to the very first machine that opens it
-    if (shareLink.logs.length > 0) {
+    // 4. OPTIONAL IP / DEVICE LOCKING: Only runs if 'lockToFirstDevice' was checked on the form
+    if (shareLink.lockToFirstDevice && shareLink.logs.length > 0) {
         const firstOpenerIp = shareLink.logs[0].ipAddress;
         // Allow local host testing, but block different external IPs
         if (firstOpenerIp !== "127.0.0.1" && firstOpenerIp !== "::1" && firstOpenerIp !== ip) {
@@ -75,7 +73,23 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 5. PASSWORD GATE: Check password if it is required
+    // 5. UNIQUE RECIPIENTS LIMIT: Count unique IPs in history log to limit different devices
+    const uniqueIps = Array.from(new Set(shareLink.logs.map(log => log.ipAddress).filter(loggedIp => loggedIp !== "127.0.0.1" && loggedIp !== "::1")));
+    if (shareLink.maxUniqueDevices) {
+        const isNewVisitor = !uniqueIps.includes(ip);
+        if (isNewVisitor && uniqueIps.length >= shareLink.maxUniqueDevices) {
+            return (
+                <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
+                    <div className="text-center max-w-md border border-zinc-800 p-8 rounded-lg bg-zinc-950">
+                        <h1 className="text-xl font-bold text-red-500 mb-2">Access Limit Reached</h1>
+                        <p className="text-zinc-400 text-sm">This document link has reached its maximum unique recipient limit and cannot be accessed from new devices.</p>
+                    </div>
+                </div>
+            );
+        }
+    }
+
+    // 6. PASSWORD GATE: Check password if it is required
     if (shareLink.requirePassword && shareLink.passwordHash) {
         let passwordGranted = false;
 
@@ -111,7 +125,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 6. SECURITY CHECK: Has the hard expiration date passed?
+    // 7. SECURITY CHECK: Has the hard expiration date passed?
     if (shareLink.expiresAt && new Date() > shareLink.expiresAt) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -123,7 +137,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 7. SECURITY CHECK: Has it exceeded maximum allowed opens?
+    // 8. SECURITY CHECK: Has it exceeded maximum allowed opens?
     if (shareLink.maxViews && shareLink.currentViews >= shareLink.maxViews) {
         return (
             <div className="flex h-screen items-center justify-center bg-black text-white p-6 font-sans">
@@ -135,7 +149,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         );
     }
 
-    // 8. SECURITY CHECK: Is the time-bomb duration active from the first open?
+    // 9. SECURITY CHECK: Is the time-bomb duration active from the first open?
     if (shareLink.firstOpenedAt && shareLink.expiresAfterOpenMinutes) {
         const timeLimit = new Date(shareLink.firstOpenedAt.getTime() + shareLink.expiresAfterOpenMinutes * 60000);
         if (new Date() > timeLimit) {
@@ -150,7 +164,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     }
 
-    // 9. Log access details & increment views
+    // 10. Log access details & increment views
     const isFirstOpen = !shareLink.firstOpenedAt;
 
     await prisma.shareLink.update({
@@ -169,7 +183,7 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
         }
     });
 
-    // 10. Generate a secure, temporary S3 view URL on-the-fly
+    // 11. Generate a secure, temporary S3 view URL on-the-fly
     let secureViewUrl = shareLink.documentUrl;
     try {
         const s3Key = getS3KeyFromUrl(shareLink.documentUrl);
@@ -186,19 +200,22 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
 
     return (
         <div className="relative h-screen w-screen bg-zinc-900 text-white select-none overflow-hidden font-sans">
+            {/* CSS print, selection, and mobile long-press blocking rules */}
             <style dangerouslySetInnerHTML={{__html: `
         @media print {
           body { display: none !important; }
         }
-        body {
-          user-select: none !important;
+        * {
+          -webkit-touch-callout: none !important;
           -webkit-user-select: none !important;
+          -khtml-user-select: none !important;
           -moz-user-select: none !important;
           -ms-user-select: none !important;
+          user-select: none !important;
         }
       `}} />
 
-            {/* Block Right-Click and Copy/Print Shortcuts */}
+            {/* Block Mobile Selection, Right-Click, and Copy/Print Shortcuts */}
             <script dangerouslySetInnerHTML={{__html: `
         document.addEventListener('contextmenu', event => event.preventDefault());
         document.addEventListener('keydown', event => {
@@ -212,11 +229,29 @@ export default async function ViewDocumentPage({ params, searchParams }: ViewPag
             event.preventDefault();
           }
         });
+
+        // Actively clear mobile highlight selection triggers
+        document.addEventListener('selectionchange', () => {
+          window.getSelection()?.removeAllRanges();
+        });
+
+        // 5-Second Deactivation Check
+        setInterval(async () => {
+          try {
+            const res = await fetch('/api/share/status/${token}');
+            const data = await res.json();
+            if (data && data.active === false) {
+              window.location.reload();
+            }
+          } catch (err) {
+            console.error("Connection check failed");
+          }
+        }, 5000);
       `}} />
 
-            {/* Forensic Watermark with Client's Location, IP, and Access Timestamp */}
-            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-3 grid-rows-3 gap-4 opacity-10 rotate-[-30deg] scale-125 select-none font-mono text-xs text-white">
-                {Array.from({ length: 9 }).map((_, i) => (
+            {/* DENSE DARK GREY WATERMARK (Shows clearly on white PDFs) */}
+            <div className="pointer-events-none absolute inset-0 z-50 grid grid-cols-4 grid-rows-4 gap-2 opacity-20 rotate-[-25deg] scale-110 select-none font-mono text-xs text-zinc-950 font-bold">
+                {Array.from({ length: 16 }).map((_, i) => (
                     <div key={i} className="flex items-center justify-center whitespace-nowrap">
                         {shareLink.watermarkText || "CONFIDENTIAL"} | IP: {ip} | {city} | {currentDate}
                     </div>

@@ -138,6 +138,8 @@ model ShareLink {
   fileName                String
   creatorEmail            String?
   isArchived              Boolean   @default(false)
+  lockToFirstDevice       Boolean   @default(false)
+  maxUniqueDevices        Int?
   requirePassword         Boolean   @default(false)
   passwordHash            String?
   maxViews                Int?
